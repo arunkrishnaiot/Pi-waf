@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi WAF Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700;800&display=swap');
+:root{
+  --bg:#06080d;--panel:#0c1018;--panel2:#0e1420;--border:#1a2535;
+  --red:#e8142a;--green:#00c853;--blue:#0090d4;--yellow:#f5a623;--orange:#e8602a;
+  --text:#8aacbf;--muted:#253545;--white:#ddeeff;
+  --mono:'Share Tech Mono',monospace;--sans:'Barlow',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex;flex-direction:column;}
+
+/* NAVBAR */
+nav{
+  background:#080b12;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;height:50px;padding:0 20px;
+  flex-shrink:0;gap:20px;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo svg{width:28px;height:28px;}
+.logo-text{font-weight:800;font-size:16px;color:var(--white);letter-spacing:.5px;}
+.logo-text em{color:var(--red);font-style:normal;}
+.nav-sep{width:1px;height:22px;background:var(--border);}
+.nav-links{display:flex;height:100%;}
+.nav-link{
+  display:flex;align-items:center;padding:0 14px;
+  font-family:var(--mono);font-size:10px;letter-spacing:1.5px;
+  color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;
+  text-transform:uppercase;transition:color .15s;white-space:nowrap;
+}
+.nav-link:hover{color:var(--text);}
+.nav-link.active{color:var(--red);border-bottom-color:var(--red);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.svc{padding:2px 8px;font-family:var(--mono);font-size:10px;letter-spacing:1px;border:1px solid;}
+.svc-on{color:var(--green);border-color:rgba(0,200,83,.25);background:rgba(0,200,83,.05);}
+.svc-off{color:var(--red);border-color:rgba(232,20,42,.25);background:rgba(232,20,42,.05);}
+.live-ind{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--muted);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.nav-user{
+  display:flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:10px;color:var(--muted);padding:4px 10px;
+  border:1px solid var(--border);cursor:pointer;
+}
+.nav-user:hover{color:var(--text);border-color:var(--muted);}
+
+/* LAYOUT */
+.layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{
+  width:192px;background:#080b12;border-right:1px solid var(--border);
+  flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;
+}
+.sb-sec{
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  color:var(--muted);padding:14px 14px 5px;text-transform:uppercase;
+}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  font-size:12px;color:var(--text);text-decoration:none;
+  border-left:2px solid transparent;transition:all .12s;cursor:pointer;
+}
+.sb-item:hover{background:rgba(255,255,255,.02);color:var(--white);}
+.sb-item.active{color:var(--red);border-left-color:var(--red);background:rgba(232,20,42,.05);}
+.sb-icon{
+  width:16px;height:16px;flex-shrink:0;
+  background:var(--muted);mask-size:contain;mask-repeat:no-repeat;mask-position:center;
+}
+/* SVG icon masks */
+.icon-dash{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E");}
+.icon-events{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13 3L4 14h7l-1 7 9-11h-7z'/%3E%3C/svg%3E");}
+.icon-shield{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L4 6v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V6L12 2z'/%3E%3C/svg%3E");}
+.icon-rules{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='2'/%3E%3Crect x='3' y='9' width='18' height='2'/%3E%3Crect x='3' y='14' width='12' height='2'/%3E%3C/svg%3E");}
+.icon-ip{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='currentColor' stroke-width='2'/%3E%3Cpath d='M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18M3 12h18'/%3E%3C/svg%3E");}
+.icon-geo{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E");}
+.icon-restart{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z'/%3E%3C/svg%3E");}
+.icon-test{mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 3v11l-5 5h16l-5-5V3H9zm3 0h0M8 3h8'/%3E%3C/svg%3E");}
+.sb-item.active .sb-icon,.sb-item:hover .sb-icon{background:currentColor;}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:18px 20px;}
+
+/* PAGE HEADER */
+.page-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.page-title{font-size:17px;font-weight:700;color:var(--white);}
+.page-sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:10px;}
+.refresh-tag{
+  font-family:var(--mono);font-size:10px;
+  background:rgba(232,20,42,.08);border:1px solid rgba(232,20,42,.2);
+  color:rgba(232,20,42,.7);padding:3px 10px;letter-spacing:1px;
+}
+
+/* ALERT BAR */
+.alertbar{
+  background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--red);
+  padding:10px 18px;display:flex;align-items:center;gap:28px;margin-bottom:14px;flex-wrap:wrap;
+}
+.ab-block{display:flex;flex-direction:column;}
+.ab-num{font-size:28px;font-weight:800;color:var(--white);line-height:1;}
+.ab-lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:2px;}
+.vdiv{width:1px;height:32px;background:var(--border);}
+.sev-grp{display:flex;align-items:center;gap:6px;}
+.sev-pill{padding:1px 7px;font-family:var(--mono);font-size:10px;font-weight:700;border:1px solid;}
+.pill-h{color:var(--red);border-color:rgba(232,20,42,.4);background:rgba(232,20,42,.08);}
+.pill-m{color:var(--yellow);border-color:rgba(245,166,35,.4);background:rgba(245,166,35,.06);}
+.pill-l{color:var(--blue);border-color:rgba(0,144,212,.3);background:rgba(0,144,212,.06);}
+.sev-n{font-size:20px;font-weight:800;color:var(--white);}
+
+/* TILES */
+.tiles{display:grid;gap:10px;margin-bottom:14px;}
+.tiles-5{grid-template-columns:repeat(5,1fr);}
+.tiles-4{grid-template-columns:repeat(4,1fr);}
+.tile{background:var(--panel);border:1px solid var(--border);padding:12px 14px;position:relative;overflow:hidden;}
+.tile-bar{height:2px;position:absolute;top:0;left:0;right:0;}
+.tile-lbl{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.tile-val{font-size:24px;font-weight:800;color:var(--white);line-height:1.2;margin:4px 0 2px;}
+.tile-sub{font-size:12px;font-weight:600;}
+
+/* GRID LAYOUTS */
+.g2{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px;}
+.g2b{display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:14px;}
+.g2c{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+
+/* CARD */
+.card{background:var(--panel);border:1px solid var(--border);margin-bottom:14px;}
+.card-hd{
+  padding:9px 14px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);display:flex;justify-content:space-between;align-items:center;
+}
+.card-hd-r{color:var(--red);}
+.card-hd-b{color:var(--blue);}
+.card-body{padding:14px;}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{
+  padding:7px 12px;text-align:left;background:#080b12;
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+.tbl td{
+  padding:6px 12px;border-bottom:1px solid rgba(26,37,53,.5);
+  font-size:11px;font-family:var(--mono);
+}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:rgba(255,255,255,.01);}
+.c-ip{color:var(--blue);}
+.c-red{color:var(--red);}
+.c-yellow{color:var(--yellow);}
+.c-green{color:var(--green);}
+.c-orange{color:var(--orange);}
+.c-muted{color:var(--muted);}
+.c-white{color:var(--white);}
+.c-HIGH{color:var(--red);}
+.c-MEDIUM{color:var(--yellow);}
+.c-LOW{color:var(--blue);}
+.uri-cell{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* MAP */
+.geomap{width:100%;height:260px;background:#07090e;border:1px solid var(--border);position:relative;overflow:hidden;}
+.map-dot{
+  position:absolute;border-radius:50%;background:var(--red);
+  transform:translate(-50%,-50%);animation:mpulse 2.5s infinite;
+}
+@keyframes mpulse{0%,100%{box-shadow:0 0 4px var(--red);}50%{box-shadow:0 0 14px var(--red),0 0 26px rgba(232,20,42,.25);}}
+.map-label{position:absolute;font-family:var(--mono);font-size:9px;color:var(--muted);transform:translate(-50%,8px);}
+
+/* FORM ELEMENTS */
+.inp{
+  background:#080b12;border:1px solid var(--border);color:var(--white);
+  padding:7px 11px;font-family:var(--mono);font-size:12px;outline:none;
+}
+.inp:focus{border-color:var(--blue);}
+.inp-wide{width:100%;}
+.inp-area{
+  background:#080b12;border:1px solid var(--border);color:var(--white);
+  padding:10px 12px;font-family:var(--mono);font-size:11px;
+  outline:none;width:100%;resize:vertical;min-height:80px;line-height:1.5;
+}
+.inp-area:focus{border-color:var(--blue);}
+.form-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start;}
+.btn{
+  padding:7px 14px;font-family:var(--mono);font-size:10px;
+  letter-spacing:1px;cursor:pointer;border:1px solid;text-transform:uppercase;
+  white-space:nowrap;
+}
+.btn-red{background:rgba(232,20,42,.12);color:var(--red);border-color:rgba(232,20,42,.4);}
+.btn-red:hover{background:rgba(232,20,42,.25);}
+.btn-blue{background:rgba(0,144,212,.1);color:var(--blue);border-color:rgba(0,144,212,.35);}
+.btn-blue:hover{background:rgba(0,144,212,.22);}
+.btn-green{background:rgba(0,200,83,.08);color:var(--green);border-color:rgba(0,200,83,.3);}
+.btn-green:hover{background:rgba(0,200,83,.2);}
+.btn-sm{padding:3px 9px;font-size:9px;}
+.btn-full{width:100%;text-align:center;}
+
+/* TAGS */
+.blocked-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(232,20,42,.07);border:1px solid rgba(232,20,42,.2);
+  padding:3px 9px;margin:3px;font-family:var(--mono);font-size:11px;color:var(--red);
+}
+.blocked-tag button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;}
+.blocked-tag button:hover{color:var(--red);}
+
+/* COUNTRY GRID */
+.country-grid{display:flex;flex-wrap:wrap;gap:5px;}
+.c-btn{
+  background:rgba(0,144,212,.06);border:1px solid rgba(0,144,212,.18);
+  color:var(--text);padding:4px 11px;font-family:var(--mono);font-size:10px;
+  cursor:pointer;letter-spacing:.5px;
+}
+.c-btn:hover{background:rgba(0,144,212,.15);}
+.c-btn-blocked{background:rgba(232,20,42,.08);border-color:rgba(232,20,42,.3);color:var(--red);}
+.c-btn-blocked:hover{background:rgba(232,20,42,.2);}
+
+/* RULE TABLE */
+.rule-row{
+  display:grid;grid-template-columns:80px 1fr 90px 60px 55px 60px 50px;
+  align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid rgba(26,37,53,.5);
+  font-family:var(--mono);font-size:11px;
+}
+.rule-row:hover{background:rgba(255,255,255,.01);}
+.rule-hd{background:#080b12;color:var(--muted);font-size:9px;letter-spacing:2px;text-transform:uppercase;}
+
+/* MODAL */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:1000;align-items:center;justify-content:center;
+}
+.modal-overlay.show{display:flex;}
+.modal{
+  background:var(--panel);border:1px solid var(--border);
+  width:520px;max-width:95vw;
+}
+.modal-hd{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;letter-spacing:1px;
+  color:var(--white);display:flex;justify-content:space-between;
+}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;}
+.modal-close:hover{color:var(--white);}
+.modal-body{padding:16px;}
+.modal-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:20px;right:20px;
+  background:var(--panel);border:1px solid var(--border);
+  padding:10px 16px;font-family:var(--mono);font-size:11px;
+  z-index:2000;transform:translateY(100px);transition:transform .3s;
+}
+.toast.show{transform:translateY(0);}
+.toast-ok{border-left:3px solid var(--green);color:var(--green);}
+.toast-err{border-left:3px solid var(--red);color:var(--red);}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+
+/* STATUS indicator */
+.status-on{color:var(--green);font-weight:700;}
+.status-off{color:var(--red);font-weight:700;}
+</style>
+</head>
+<body>
+{%- set cur = page -%}
+
+<!-- NAVBAR -->
+<nav>
+  <a class="logo" href="/">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="46" fill="#c8102e"/>
+      <circle cx="50" cy="50" r="38" fill="#9e0c22"/>
+      <rect x="30" y="30" width="40" height="40" rx="3" fill="#06080d" stroke="#e8142a" stroke-width="1.5"/>
+      <rect x="36" y="36" width="28" height="28" rx="2" fill="#0c1018"/>
+      <text x="50" y="56" text-anchor="middle" fill="#e8142a" font-size="18" font-weight="bold" font-family="monospace">π</text>
+      <rect x="22" y="43" width="6" height="3" rx="1" fill="#e8142a"/>
+      <rect x="22" y="52" width="6" height="3" rx="1" fill="#e8142a"/>
+      <rect x="72" y="43" width="6" height="3" rx="1" fill="#e8142a"/>
+      <rect x="72" y="52" width="6" height="3" rx="1" fill="#e8142a"/>
+      <rect x="43" y="22" width="3" height="6" rx="1" fill="#e8142a"/>
+      <rect x="52" y="22" width="3" height="6" rx="1" fill="#e8142a"/>
+      <rect x="43" y="72" width="3" height="6" rx="1" fill="#e8142a"/>
+      <rect x="52" y="72" width="3" height="6" rx="1" fill="#e8142a"/>
+    </svg>
+    <span class="logo-text">Pi <em>WAF</em></span>
+  </a>
+  <div class="nav-sep"></div>
+  <div class="nav-links">
+    <a href="/" class="nav-link {{'active' if cur=='dashboard'}}">Dashboard</a>
+    <a href="/events" class="nav-link {{'active' if cur=='events'}}">Events</a>
+    <a href="/security" class="nav-link {{'active' if cur=='security'}}">Security</a>
+    <a href="/wafstatus" class="nav-link {{'active' if cur=='wafstatus'}}">WAF Status</a>
+  </div>
+  <div class="nav-right">
+    <div class="live-ind"><span class="live-dot"></span>LIVE</div>
+    {% if cur in ['dashboard','wafstatus'] %}
+    <span class="svc {{'svc-on' if nginx=='RUNNING' else 'svc-off'}}">NGINX &nbsp;{{nginx}}</span>
+    <span class="svc {{'svc-on' if fail2ban=='RUNNING' else 'svc-off'}}">FAIL2BAN &nbsp;{{fail2ban}}</span>
+    {% endif %}
+    <span style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="nav-clock">--:--:--</span>
+    <a href="/logout" class="nav-user">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+      admin &nbsp; Sign Out
+    </a>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-sec">Monitor</div>
+  <a href="/" class="sb-item {{'active' if cur=='dashboard'}}"><span class="sb-icon icon-dash"></span>Overview</a>
+  <a href="/events" class="sb-item {{'active' if cur=='events'}}"><span class="sb-icon icon-events"></span>Attack Events</a>
+  <a href="/wafstatus" class="sb-item {{'active' if cur=='wafstatus'}}"><span class="sb-icon icon-shield"></span>WAF Status</a>
+  <div class="sb-sec">Manage</div>
+  <a href="/security#rules" class="sb-item {{'active' if cur=='security'}}"><span class="sb-icon icon-rules"></span>Rules</a>
+  <a href="/security#ipcontrol" class="sb-item"><span class="sb-icon icon-ip"></span>IP Control</a>
+  <a href="/security#geoblocking" class="sb-item"><span class="sb-icon icon-geo"></span>Geo Blocking</a>
+  <div class="sb-sec">System</div>
+  <div class="sb-item" onclick="doRestart()"><span class="sb-icon icon-restart"></span>Restart WAF</div>
+  <div class="sb-item" onclick="doTest()"><span class="sb-icon icon-test"></span>Test WAF</div>
+</aside>
+
+<!-- CONTENT -->
+<main class="content">
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+{% if page == 'dashboard' %}
+<div class="page-hd">
+  <div><span class="page-title">Dashboard</span><span class="page-sub">All Web Applications &middot; Last 24h</span></div>
+  <span class="refresh-tag" id="refresh-tag">REFRESH IN 15s</span>
+</div>
+
+<div class="alertbar">
+  <div class="ab-block"><div class="ab-num">{{log.total}}</div><div class="ab-lbl">Total Alerts</div></div>
+  <div class="vdiv"></div>
+  <div class="sev-grp"><span class="sev-pill pill-h">HIGH</span><span class="sev-n">{{log.severity.HIGH}}</span><span style="font-size:10px;color:var(--muted)">Severity</span></div>
+  <div class="sev-grp"><span class="sev-pill pill-m">MED</span><span class="sev-n">{{log.severity.MEDIUM}}</span><span style="font-size:10px;color:var(--muted)">Severity</span></div>
+  <div class="sev-grp"><span class="sev-pill pill-l">LOW</span><span class="sev-n">{{log.severity.LOW}}</span><span style="font-size:10px;color:var(--muted)">Severity</span></div>
+  <div class="vdiv"></div>
+  <div style="display:flex;gap:20px;font-family:var(--mono);">
+    <div><div style="font-size:16px;font-weight:700;color:var(--white)">{{log.total_requests}}</div><div style="font-size:9px;color:var(--muted);letter-spacing:1px">TOTAL HITS</div></div>
+    <div><div style="font-size:16px;font-weight:700;color:var(--red)">{{log.total}}</div><div style="font-size:9px;color:var(--muted);letter-spacing:1px">BLOCKED</div></div>
+    <div><div style="font-size:16px;font-weight:700;color:var(--green)">{{f2b.currently_banned}}</div><div style="font-size:9px;color:var(--muted);letter-spacing:1px">BANNED IPS</div></div>
+  </div>
+</div>
+
+<div class="tiles tiles-5">
+  <div class="tile"><div class="tile-bar" style="background:var(--green)"></div><div class="tile-lbl">Nginx WAF</div><div class="tile-sub status-{{'on' if nginx=='RUNNING' else 'off'}}">{{nginx}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--green)"></div><div class="tile-lbl">Fail2ban</div><div class="tile-sub status-{{'on' if fail2ban=='RUNNING' else 'off'}}">{{fail2ban}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--red)"></div><div class="tile-lbl">Total Attacks</div><div class="tile-val">{{log.total}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--yellow)"></div><div class="tile-lbl">Total Banned</div><div class="tile-val">{{f2b.total_banned}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--blue)"></div><div class="tile-lbl">OWASP Rules</div><div class="tile-val">841</div></div>
+</div>
+
+<div class="g2">
+  <div class="card" style="margin:0"><div class="card-hd">Activity Timeline <span class="card-hd-r">Attacks / Hour</span></div><div class="card-body" style="padding:10px"><canvas id="tlChart" height="80"></canvas></div></div>
+  <div class="card" style="margin:0"><div class="card-hd">Attack Distribution <span class="card-hd-r">By Type</span></div><div class="card-body" style="padding:10px"><canvas id="typeChart" height="80"></canvas></div></div>
+</div>
+
+<div class="g2b">
+  <div class="card" style="margin:0">
+    <div class="card-hd">Top Attacker IPs <span class="card-hd-b">{{log.top_ips|length}} sources</span></div>
+    <table class="tbl">
+      <tr><th>#</th><th>IP Address</th><th>Requests</th><th>Action</th></tr>
+      {% for ip in log.top_ips %}
+      <tr>
+        <td class="c-muted">{{loop.index}}</td>
+        <td class="c-ip">{{ip.ip}}</td>
+        <td class="c-red">{{ip.count}}</td>
+        <td><form method="POST" action="/api/block_ip" style="display:inline"><input type="hidden" name="ip" value="{{ip.ip}}"><button class="btn btn-red btn-sm">Block</button></form></td>
+      </tr>
+      {% endfor %}
+      {% if not log.top_ips %}<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:12px;font-size:11px">No data</td></tr>{% endif %}
+    </table>
+  </div>
+  <div class="card" style="margin:0">
+    <div class="card-hd">Top Targeted URIs</div>
+    <table class="tbl">
+      <tr><th>URI</th><th>Hits</th></tr>
+      {% for u in log.top_uris %}
+      <tr><td class="uri-cell c-white" title="{{u.uri}}">{{u.uri}}</td><td class="c-orange">{{u.count}}</td></tr>
+      {% endfor %}
+      {% if not log.top_uris %}<tr><td colspan="2" style="color:var(--muted);text-align:center;padding:12px;font-size:11px">No data</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:0">
+  <div class="card-hd">Geo Attack Map <span class="card-hd-r">Attack Origins</span></div>
+  <div style="padding:0">
+    <div id="leaflet-map" style="width:100%;height:300px;background:#07090e;border:1px solid var(--border);"></div>
+    <div style="padding:5px 12px;background:var(--panel);border:1px solid var(--border);border-top:none;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px">ATTACK ORIGIN MAP &mdash; DRAG TO PAN &mdash; SCROLL TO ZOOM &mdash; CLICK MARKERS FOR DETAILS</div>
+  </div>
+</div>
+
+{% endif %}
+
+<!-- ═══════════════ EVENTS ═══════════════ -->
+{% if page == 'events' %}
+<div class="page-hd">
+  <div><span class="page-title">Event Logs</span><span class="page-sub">{{log.total}} attacks &middot; {{normal.total}} normal</span></div>
+</div>
+
+<!-- Severity summary tiles -->
+<div style="display:flex;gap:10px;margin-bottom:14px;">
+  <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--red);padding:10px 14px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted)">HIGH SEVERITY</div>
+    <div style="font-size:22px;font-weight:800;color:var(--red)">{{log.severity.HIGH}}</div>
+  </div>
+  <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--yellow);padding:10px 14px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted)">MEDIUM SEVERITY</div>
+    <div style="font-size:22px;font-weight:800;color:var(--yellow)">{{log.severity.MEDIUM}}</div>
+  </div>
+  <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--blue);padding:10px 14px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted)">LOW SEVERITY</div>
+    <div style="font-size:22px;font-weight:800;color:var(--blue)">{{log.severity.LOW}}</div>
+  </div>
+  <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--green);padding:10px 14px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted)">NORMAL TRAFFIC</div>
+    <div style="font-size:22px;font-weight:800;color:var(--green)">{{normal.total}}</div>
+  </div>
+  <div style="flex:3;background:var(--panel);border:1px solid var(--border);padding:8px 12px;">
+    <canvas id="sevChart" height="55"></canvas>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="card" style="margin:0">
+  <div style="display:flex;border-bottom:1px solid var(--border);">
+    <a href="/events?tab=attack" style="display:flex;align-items:center;gap:8px;padding:10px 18px;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;border-bottom:2px solid {{'var(--red)' if active_tab=='attack' else 'transparent'}};color:{{'var(--white)' if active_tab=='attack' else 'var(--muted)'}};transition:color .15s;">
+      Attack Logs
+      <span style="background:rgba(232,20,42,.12);border:1px solid rgba(232,20,42,.3);color:var(--red);padding:1px 6px;font-size:9px;">{{log.total}}</span>
+    </a>
+    <a href="/events?tab=normal" style="display:flex;align-items:center;gap:8px;padding:10px 18px;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;border-bottom:2px solid {{'var(--green)' if active_tab=='normal' else 'transparent'}};color:{{'var(--white)' if active_tab=='normal' else 'var(--muted)'}};transition:color .15s;">
+       Normal Traffic
+      <span style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.25);color:var(--green);padding:1px 6px;font-size:9px;">{{normal.total}}</span>
+    </a>
+  </div>
+
+  {% if active_tab == 'attack' %}
+  <div style="overflow-x:auto;max-height:calc(100vh - 320px);overflow-y:auto;">
+    <table class="tbl">
+      <tr><th>Timestamp</th><th>Source IP</th><th>Method</th><th>URI</th><th>Attack Type</th><th>Rule ID</th><th>Rule File</th><th>Severity</th><th>Action</th></tr>
+      {% for a in log.attacks %}
+      <tr>
+        <td class="c-muted" style="white-space:nowrap;font-size:10px">{{a.time}}</td>
+        <td class="c-ip">{{a.ip}}</td>
+        <td class="c-orange">{{a.method}}</td>
+        <td class="uri-cell c-white" title="{{a.uri}}">{{a.uri[:35]}}</td>
+        <td class="c-yellow">{{a.type}}</td>
+        <td class="c-blue">{{a.rule}}</td>
+        <td class="c-muted" style="font-size:10px">{{a.file}}</td>
+        <td class="c-{{a.severity}}">{{a.severity}}</td>
+        <td><form method="POST" action="/api/block_ip" style="display:inline"><input type="hidden" name="ip" value="{{a.ip}}"><button class="btn btn-red btn-sm">Block IP</button></form></td>
+      </tr>
+      {% endfor %}
+      {% if not log.attacks %}<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:20px;font-size:11px">No attack logs recorded</td></tr>{% endif %}
+    </table>
+  </div>
+
+  {% else %}
+  <div style="overflow-x:auto;max-height:calc(100vh - 320px);overflow-y:auto;">
+    <table class="tbl">
+      <tr><th>Timestamp</th><th>IP Address</th><th>Method</th><th>URI</th><th>Status</th><th>Size</th><th>User Agent</th></tr>
+      {% for r in normal.requests %}
+      <tr>
+        <td class="c-muted" style="white-space:nowrap;font-size:10px">{{r.time}}</td>
+        <td class="c-ip">{{r.ip}}</td>
+        <td class="c-green">{{r.method}}</td>
+        <td class="uri-cell c-white" title="{{r.uri}}">{{r.uri[:40]}}</td>
+        <td style="color:{{'var(--green)' if r.status.startswith('2') else 'var(--yellow)' if r.status.startswith('3') else 'var(--red)'}}">{{r.status}}</td>
+        <td class="c-muted">{{r.size}}B</td>
+        <td class="c-muted" style="font-size:9px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{r.ua[:40] if r.ua else '-'}}</td>
+      </tr>
+      {% endfor %}
+      {% if not normal.requests %}<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px;font-size:11px">No normal traffic logs — ensure nginx access.log exists at /usr/local/nginx/logs/access.log</td></tr>{% endif %}
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ═══════════════ SECURITY ═══════════════ -->
+{% if page == 'security' %}
+<div class="page-hd"><span class="page-title">Security Management</span></div>
+
+<!-- IP Control -->
+<div class="card" id="ipcontrol">
+  <div class="card-hd">IP Access Control <span class="card-hd-r">{{blocked_ips|length}} manually blocked</span></div>
+  <div class="card-body">
+    <form method="POST" action="/api/block_ip">
+      <div class="form-row">
+        <input class="inp" style="flex:1" name="ip" placeholder="IP address (e.g. 192.168.1.100)" required>
+        <button class="btn btn-red">Block IP</button>
+      </div>
+    </form>
+    <div style="margin-top:10px;">
+      {% for ip in blocked_ips %}
+      <span class="blocked-tag">{{ip}}<form method="POST" action="/api/unblock_ip"><input type="hidden" name="ip" value="{{ip}}"><button title="Unblock">x</button></form></span>
+      {% endfor %}
+      {% if not blocked_ips %}<span style="font-family:var(--mono);font-size:11px;color:var(--muted)">No IPs manually blocked</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Fail2ban -->
+<div class="card">
+  <div class="card-hd">Fail2ban Auto-Banned IPs <span class="card-hd-r">{{f2b.currently_banned}} active</span></div>
+  <div class="card-body">
+    {% for ip in f2b.banned_ips %}
+    <span class="blocked-tag">{{ip}}<form method="POST" action="/api/unblock_ip"><input type="hidden" name="ip" value="{{ip}}"><button title="Unban">x</button></form></span>
+    {% endfor %}
+    {% if not f2b.banned_ips %}<span style="font-family:var(--mono);font-size:11px;color:var(--muted)">No IPs currently auto-banned</span>{% endif %}
+  </div>
+</div>
+
+<!-- Geo Blocking -->
+<div class="card" id="geoblocking">
+  <div class="card-hd">Geo Blocking <span class="card-hd-r">{{blocked_countries|length}} countries blocked</span></div>
+  <div class="card-body">
+    <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:.5px">Click to toggle country blocking. Red = currently blocked.</p>
+    <div class="country-grid">
+      {% set countries = [('CN','China'),('RU','Russia'),('KP','North Korea'),('IR','Iran'),('US','United States'),
+         ('DE','Germany'),('FR','France'),('GB','United Kingdom'),('BR','Brazil'),('IN','India'),
+         ('PK','Pakistan'),('BD','Bangladesh'),('NG','Nigeria'),('VN','Vietnam'),('TH','Thailand'),
+         ('ID','Indonesia'),('UA','Ukraine'),('TR','Turkey'),('PL','Poland'),('RO','Romania'),
+         ('AR','Argentina'),('MX','Mexico'),('ZA','South Africa'),('EG','Egypt'),('SA','Saudi Arabia')] %}
+      {% for code,name in countries %}
+      {% if code in blocked_countries %}
+      <form method="POST" action="/api/unblock_country" style="display:inline">
+        <input type="hidden" name="country" value="{{code}}">
+        <button class="c-btn c-btn-blocked">{{code}} - {{name}}</button>
+      </form>
+      {% else %}
+      <form method="POST" action="/api/block_country" style="display:inline">
+        <input type="hidden" name="country" value="{{code}}">
+        <button class="c-btn">{{code}} - {{name}}</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Custom Rule Add -->
+<div class="card" id="addrule">
+  <div class="card-hd">Add Custom Rule <span class="card-hd-b">Applied to Nginx immediately</span></div>
+  <div class="card-body">
+    <p style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:10px;">Write a ModSecurity SecRule. It will be saved and applied to the running WAF via nginx reload.</p>
+    <form method="POST" action="/api/add_rule">
+      <textarea class="inp-area" name="rule" placeholder='SecRule ARGS "@contains badword" "id:100001,phase:2,deny,status:403,msg:'"'"'Custom Block'"'"'"'></textarea>
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+        <button class="btn btn-green">Apply Rule to WAF</button>
+      </div>
+    </form>
+    {% if custom_rules %}
+    <div style="margin-top:14px;">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">ACTIVE CUSTOM RULES</div>
+      <pre style="background:#080b12;border:1px solid var(--border);padding:10px;font-family:var(--mono);font-size:11px;color:var(--blue);overflow-x:auto;white-space:pre-wrap;">{{custom_rules}}</pre>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- All Rules Table -->
+<div class="card" id="rules" style="margin:0">
+  <div class="card-hd">OWASP CRS Rules <span class="card-hd-r">{{rules|length}} individual rules</span></div>
+  <div style="max-height:400px;overflow-y:auto;">
+    <div class="rule-row rule-hd"><span>Rule ID</span><span>Description</span><span>File</span><span>Phase</span><span>Action</span><span>Severity</span><span>Active</span></div>
+    {% for r in rules %}
+    <div class="rule-row">
+      <span class="c-blue">{{r.id}}</span>
+      <span class="c-white" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{r.msg}}">{{r.msg[:55]}}</span>
+      <span class="c-muted" style="font-size:9px;overflow:hidden;text-overflow:ellipsis;">{{r.file[:18]}}</span>
+      <span class="c-muted">{{r.phase}}</span>
+      <span class="c-red" style="font-size:9px">{{r.action}}</span>
+      <span class="c-{{r.severity}}">{{r.severity[:4]}}</span>
+      <span class="c-green" style="font-size:9px">ON</span>
+    </div>
+    {% endfor %}
+    {% if not rules %}<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--muted)">No rules found</div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════ WAF STATUS ═══════════════ -->
+{% if page == 'wafstatus' %}
+<div class="page-hd"><span class="page-title">WAF Status</span><span class="page-sub">System Overview</span></div>
+
+<div class="tiles tiles-4">
+  <div class="tile"><div class="tile-bar" style="background:{{'var(--green)' if nginx=='RUNNING' else 'var(--red)'}}"></div><div class="tile-lbl">Nginx WAF</div><div class="tile-sub status-{{'on' if nginx=='RUNNING' else 'off'}}">{{nginx}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:{{'var(--green)' if fail2ban=='RUNNING' else 'var(--red)'}}"></div><div class="tile-lbl">Fail2ban</div><div class="tile-sub status-{{'on' if fail2ban=='RUNNING' else 'off'}}">{{fail2ban}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--red)"></div><div class="tile-lbl">Currently Banned</div><div class="tile-val">{{f2b.currently_banned}}</div></div>
+  <div class="tile"><div class="tile-bar" style="background:var(--blue)"></div><div class="tile-lbl">Rules Loaded</div><div class="tile-val">{{rules|length}}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-hd">Rule Triggering Analysis <span class="card-hd-r">Top triggered rules</span></div>
+  <table class="tbl">
+    <tr><th>Rule ID</th><th>Description</th><th>Source File</th><th>Line</th><th>Hit Count</th><th>Action</th></tr>
+    {% for r in log.top_rules %}
+    <tr>
+      <td class="c-blue">{{r.id}}</td>
+      <td class="c-white" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{r.desc}}</td>
+      <td class="c-muted" style="font-size:10px">{{r.file}}</td>
+      <td class="c-muted">{{r.line}}</td>
+      <td class="c-yellow">{{r.count}}</td>
+      <td class="c-red" style="font-size:10px">BLOCK</td>
+    </tr>
+    {% endfor %}
+    {% if not log.top_rules %}<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:14px;font-size:11px">No rule triggers recorded</td></tr>{% endif %}
+  </table>
+</div>
+
+<div class="card" style="margin:0">
+  <div class="card-hd">All Active Rule Files <span class="card-hd-b">{{rules|length}} individual rules</span></div>
+  <div style="max-height:380px;overflow-y:auto;">
+    <div style="display:grid;grid-template-columns:200px 1fr 80px 60px;gap:10px;padding:6px 12px;background:#080b12;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">
+      <span>Rule File</span><span>Description</span><span>Rules</span><span>Status</span>
+    </div>
+    {% set ns = namespace(last_file='') %}
+    {% for r in rules %}
+    {% if r.file != ns.last_file %}
+    {% set ns.last_file = r.file %}
+    {% set file_rules = rules | selectattr('file','eq',r.file) | list %}
+    <div style="display:grid;grid-template-columns:200px 1fr 80px 60px;gap:10px;padding:7px 12px;border-bottom:1px solid rgba(26,37,53,.4);font-family:var(--mono);font-size:11px;">
+      <span class="c-blue" style="font-size:10px;overflow:hidden;text-overflow:ellipsis;">{{r.file[:26]}}</span>
+      <span class="c-muted" style="font-size:10px;">{{r.tag[:50] if r.tag else '-'}}</span>
+      <span class="c-yellow">{{file_rules|length}}</span>
+      <span class="c-green" style="font-size:10px">Active</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+</main>
+</div>
+
+<!-- MODALS -->
+<!-- Restart Modal -->
+<div class="modal-overlay" id="restartModal">
+  <div class="modal">
+    <div class="modal-hd">Restart WAF Services<button class="modal-close" onclick="closeModal('restartModal')">x</button></div>
+    <div class="modal-body">
+      <p style="font-family:var(--mono);font-size:12px;color:var(--text);margin-bottom:12px;">This will restart nginx-waf service. Brief downtime expected.</p>
+      <div id="restart-output" style="background:#080b12;border:1px solid var(--border);padding:10px;font-family:var(--mono);font-size:11px;color:var(--muted);min-height:40px;display:none;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-red" onclick="confirmRestart()">Confirm Restart</button>
+      <button class="btn" style="color:var(--muted);border-color:var(--border)" onclick="closeModal('restartModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Test WAF Modal -->
+<div class="modal-overlay" id="testModal">
+  <div class="modal">
+    <div class="modal-hd">WAF Test Results<button class="modal-close" onclick="closeModal('testModal')">x</button></div>
+    <div class="modal-body">
+      <p style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:12px;">Running attack simulations against localhost...</p>
+      <div id="test-results"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-blue" onclick="runTests()">Run Tests Again</button>
+      <button class="btn" style="color:var(--muted);border-color:var(--border)" onclick="closeModal('testModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Clock
+setInterval(()=>{const e=document.getElementById('nav-clock');if(e)e.textContent=new Date().toLocaleTimeString();},1000);
+
+// Auto refresh countdown
+{% if page == 'dashboard' %}
+let countdown = 15;
+const tag = document.getElementById('refresh-tag');
+const timer = setInterval(()=>{
+  countdown--;
+  if(tag) tag.textContent = `REFRESH IN ${countdown}s`;
+  if(countdown<=0){ clearInterval(timer); location.reload(); }
+},1000);
+
+// Timeline Chart
+const tlCtx = document.getElementById('tlChart').getContext('2d');
+const tlData = {{log.timeline|tojson}};
+new Chart(tlCtx,{
+  type:'bar',
+  data:{
+    labels:tlData.map(d=>d.hour),
+    datasets:[{
+      data:tlData.map(d=>d.count),
+      backgroundColor:tlData.map(d=>d.count>0?'rgba(232,20,42,0.65)':'rgba(26,37,53,0.4)'),
+      borderColor:tlData.map(d=>d.count>0?'#e8142a':'#1a2535'),
+      borderWidth:1
+    }]
+  },
+  options:{
+    responsive:true,plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#253545',font:{family:'Share Tech Mono',size:9},maxRotation:0},grid:{color:'rgba(26,37,53,.3)'}},
+      y:{ticks:{color:'#253545',font:{family:'Share Tech Mono',size:9}},grid:{color:'rgba(26,37,53,.3)'},beginAtZero:true}
+    }
+  }
+});
+
+// Type Chart
+const typeCtx = document.getElementById('typeChart').getContext('2d');
+const typeData = {{log.attack_types|tojson}};
+const tl=Object.keys(typeData),tv=Object.values(typeData);
+new Chart(typeCtx,{
+  type:'doughnut',
+  data:{
+    labels:tl.length?tl:['No Attacks'],
+    datasets:[{
+      data:tv.length?tv:[1],
+      backgroundColor:['#e8142a','#f5a623','#0090d4','#00c853','#e8602a','#7b4fa6'],
+      borderColor:'#0c1018',borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{position:'bottom',labels:{color:'#8aacbf',font:{family:'Share Tech Mono',size:9},padding:6}}}
+  }
+});
+
+// ── World Map with D3 + TopoJSON ──────────────────────────────
+// ── Leaflet Interactive Map ──────────────────────────────────
+const attackMap = L.map('leaflet-map', {
+  center: [20, 0],
+  zoom: 2,
+  minZoom: 1,
+  maxZoom: 10,
+  zoomControl: true,
+  scrollWheelZoom: true,
+  dragging: true
+});
+
+// Dark tile layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(attackMap);
+
+// Custom red marker
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:12px;height:12px;border-radius:50%;background:'+color+';box-shadow:0 0 10px '+color+';border:1px solid rgba(255,255,255,0.3);"></div>',
+    iconSize: [12,12],
+    iconAnchor: [6,6]
+  });
+}
+
+function plotIP(lat, lon, label, hits, isLocal) {
+  const color = isLocal ? '#f5a623' : '#e8142a';
+  const size = Math.min(12 + hits * 2, 32);
+  const icon = L.divIcon({
+    className: '',
+    html: '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';box-shadow:0 0 '+size+'px '+color+';border:2px solid rgba(255,255,255,0.2);opacity:0.9;animation:mpulse 2s infinite;"></div>',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+  L.marker([lat, lon], {icon: icon})
+    .addTo(attackMap)
+    .bindPopup('<div style="background:#0c1018;color:#ddeeff;font-family:monospace;font-size:11px;padding:6px;border:1px solid #1a2535;min-width:180px;"><b style="color:'+color+'">'+label+'</b><br>Requests blocked: <b style="color:#f5a623">'+hits+'</b></div>', {
+      className: 'dark-popup'
+    });
+}
+
+// Style leaflet popup
+const popupStyle = document.createElement('style');
+popupStyle.textContent = '.dark-popup .leaflet-popup-content-wrapper{background:#0c1018;border:1px solid #1a2535;border-radius:0;box-shadow:0 4px 20px rgba(0,0,0,0.8);padding:0;}.dark-popup .leaflet-popup-content{margin:0;}.dark-popup .leaflet-popup-tip{background:#0c1018;}';
+document.head.appendChild(popupStyle);
+
+// Geolocate and plot IPs
+const topIPs = {{log.top_ips|tojson}};
+const ipCounts = {};
+topIPs.forEach(i=>ipCounts[i.ip]=i.count);
+const uniqueIPs = topIPs.map(i=>i.ip).filter((v,i,a)=>a.indexOf(v)===i).slice(0,10);
+
+if(uniqueIPs.length === 0) {
+  const info = L.control(); 
+  info.onAdd = function(){ const d=L.DomUtil.create('div'); d.innerHTML='<div style="background:#0c1018;color:#253545;font-family:monospace;font-size:11px;padding:8px;border:1px solid #1a2535;">No attack data to display</div>'; return d; };
+  info.addTo(attackMap);
+} else {
+  const bounds = [];
+  uniqueIPs.forEach(ip => {
+    if(ip==='127.0.0.1'||ip.startsWith('192.168.')||ip.startsWith('10.')||ip.startsWith('172.')){
+      fetch('https://ipapi.co/json/')
+        .then(r=>r.json())
+        .then(geo=>{
+          if(geo.latitude&&geo.longitude){
+            plotIP(geo.latitude, geo.longitude, ip+' ('+( geo.city||'Local')+', '+(geo.country_name||'')+')', ipCounts[ip]||1, true);
+            bounds.push([geo.latitude, geo.longitude]);
+            if(bounds.length===1) attackMap.setView([geo.latitude, geo.longitude], 5);
+          }
+        }).catch(()=>{});
+    } else {
+      fetch('https://ipapi.co/'+ip+'/json/')
+        .then(r=>r.json())
+        .then(data=>{
+          if(data.latitude&&data.longitude){
+            plotIP(data.latitude, data.longitude, ip+' ('+(data.country_name||'?')+')', ipCounts[ip]||1, false);
+            bounds.push([data.latitude, data.longitude]);
+          }
+        }).catch(()=>{});
+    }
+  });
+}
+{% endif %}
+
+{% if page == 'events' %}
+const sevCtx=document.getElementById('sevChart').getContext('2d');
+new Chart(sevCtx,{
+  type:'bar',
+  data:{
+    labels:['HIGH','MEDIUM','LOW'],
+    datasets:[{
+      data:[{{log.severity.HIGH}},{{log.severity.MEDIUM}},{{log.severity.LOW}}],
+      backgroundColor:['rgba(232,20,42,.65)','rgba(245,166,35,.65)','rgba(0,144,212,.65)'],
+      borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true,indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#253545',font:{size:9}},grid:{color:'rgba(26,37,53,.3)'}},
+      y:{ticks:{color:'#8aacbf',font:{family:'Share Tech Mono',size:9}},grid:{display:false}}
+    }
+  }
+});
+{% endif %}
+
+// Modal helpers
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+// Toast
+function showToast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(ok?'toast-ok':'toast-err');
+  setTimeout(()=>t.className='toast',3000);
+}
+
+// Restart WAF
+function doRestart(){openModal('restartModal');document.getElementById('restart-output').style.display='none';}
+function confirmRestart(){
+  const out=document.getElementById('restart-output');
+  out.style.display='block';out.textContent='Restarting nginx-waf...';
+  fetch('/api/restart_nginx',{method:'POST'})
+    .then(r=>r.json())
+    .then(d=>{
+      out.textContent=d.output||'Done.';
+      out.style.color=d.success?'var(--green)':'var(--red)';
+      showToast(d.success?'WAF restarted successfully':'Restart failed',d.success);
+      if(d.success) setTimeout(()=>closeModal('restartModal'),2000);
+    })
+    .catch(()=>{out.textContent='Error communicating with server.';out.style.color='var(--red)';});
+}
+
+// Test WAF
+function doTest(){
+  openModal('testModal');
+  runTests();
+}
+function runTests(){
+  const r=document.getElementById('test-results');
+  r.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px">Running tests...</div>';
+  fetch('/api/test_waf',{method:'POST'})
+    .then(res=>res.json())
+    .then(data=>{
+      r.innerHTML=data.results.map(t=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${t.blocked?'var(--green)':'var(--red)'};flex-shrink:0;display:inline-block;box-shadow:0 0 6px ${t.blocked?'var(--green)':'var(--red)'}"></span>
+          <span style="flex:1;color:var(--white)">${t.test}</span>
+          <span style="color:${t.blocked?'var(--green)':'var(--red)'}">${t.blocked?'BLOCKED (403)':'PASSED THROUGH ('+t.code+')'}</span>
+        </div>
+      `).join('');
+    })
+    .catch(()=>{r.innerHTML='<div style="color:var(--red);font-family:var(--mono);font-size:11px;padding:8px">Test failed - is WAF running?</div>';});
+}
+</script>
+</body>
+</html>

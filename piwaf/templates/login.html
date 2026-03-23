@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi WAF — Login</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#06080d;color:#9ab8cc;font-family:'Barlow',sans-serif;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background-image:
+    linear-gradient(rgba(232,20,42,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(232,20,42,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.login-wrap{width:420px;}
+.login-header{text-align:center;margin-bottom:32px;}
+.login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;}
+.login-logo svg{width:48px;height:48px;}
+.login-title{font-size:28px;font-weight:800;color:#e8f0f8;letter-spacing:1px;}
+.login-title em{color:#e8142a;font-style:normal;}
+.login-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:#2d4558;letter-spacing:2px;text-transform:uppercase;margin-top:6px;}
+.login-box{
+  background:#0c1018;border:1px solid #1a2535;padding:32px;
+}
+.login-box h3{
+  font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;
+  text-transform:uppercase;color:#2d4558;margin-bottom:24px;
+  padding-bottom:12px;border-bottom:1px solid #1a2535;
+}
+.field{margin-bottom:16px;}
+.field label{
+  display:block;font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase;color:#2d4558;margin-bottom:6px;
+}
+.field input{
+  width:100%;background:#080b11;border:1px solid #1a2535;
+  color:#e8f0f8;padding:10px 14px;font-family:'Share Tech Mono',monospace;
+  font-size:13px;outline:none;transition:border-color .2s;
+}
+.field input:focus{border-color:#e8142a;}
+.btn-login{
+  width:100%;background:#e8142a;border:none;color:#fff;
+  padding:11px;font-family:'Share Tech Mono',monospace;font-size:12px;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+  margin-top:8px;transition:background .2s;
+}
+.btn-login:hover{background:#c00f24;}
+.error{
+  background:rgba(232,20,42,0.1);border:1px solid rgba(232,20,42,0.3);
+  color:#e8142a;padding:10px 14px;font-family:'Share Tech Mono',monospace;
+  font-size:11px;margin-bottom:16px;
+}
+.login-footer{
+  text-align:center;margin-top:20px;
+  font-family:'Share Tech Mono',monospace;font-size:10px;color:#1a2535;
+  letter-spacing:1px;
+}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-header">
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="46" fill="#c8102e"/>
+        <circle cx="50" cy="50" r="38" fill="#a00c24"/>
+        <rect x="30" y="30" width="40" height="40" rx="4" fill="#06080d" stroke="#e8142a" stroke-width="1.5"/>
+        <rect x="36" y="36" width="28" height="28" rx="2" fill="#0c1018"/>
+        <text x="50" y="56" text-anchor="middle" fill="#e8142a" font-size="18" font-weight="bold" font-family="monospace">π</text>
+        <rect x="22" y="44" width="6" height="3" rx="1" fill="#e8142a"/>
+        <rect x="22" y="53" width="6" height="3" rx="1" fill="#e8142a"/>
+        <rect x="72" y="44" width="6" height="3" rx="1" fill="#e8142a"/>
+        <rect x="72" y="53" width="6" height="3" rx="1" fill="#e8142a"/>
+        <rect x="44" y="22" width="3" height="6" rx="1" fill="#e8142a"/>
+        <rect x="53" y="22" width="3" height="6" rx="1" fill="#e8142a"/>
+        <rect x="44" y="72" width="3" height="6" rx="1" fill="#e8142a"/>
+        <rect x="53" y="72" width="3" height="6" rx="1" fill="#e8142a"/>
+      </svg>
+      <div>
+        <div class="login-title">Pi <em>WAF</em></div>
+        <div class="login-sub">Security Management Portal</div>
+      </div>
+    </div>
+  </div>
+  <div class="login-box">
+    <h3>Administrator Login</h3>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/login">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Enter username" required autofocus>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter password" required>
+      </div>
+      <button type="submit" class="btn-login">Sign In</button>
+    </form>
+  </div>
+  <div class="login-footer">Pi WAF &nbsp;|&nbsp; Raspberry Pi &nbsp;|&nbsp; ModSecurity + OWASP CRS</div>
+</div>
+</body>
+</html>
